@@ -1,0 +1,4 @@
+include ':flour-gen'
+include ':flour'
+include ':app'
+rootProject.name = "Flour"

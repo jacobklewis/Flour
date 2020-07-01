@@ -1,0 +1,10 @@
+{
+  "adapters": [
+    {
+      "type": "Locale",
+      "package": "java.util",
+      "fromString": "it.split(\"-\").let{ ls -> Locale(ls.first(), ls.last()) }",
+      "toString": "\"${it.language}-${it.country}\""
+    }
+  ]
+}
