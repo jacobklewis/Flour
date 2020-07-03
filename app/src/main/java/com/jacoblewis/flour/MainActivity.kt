@@ -14,5 +14,9 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         val obj = JSONObject()
         val json = PersonRecipe.toJSON(p)
+
+        val timeStr = "123455"
+        Date(timeStr.toLong())
+        val time = Date().time.toString()
     }
 }

@@ -5,6 +5,12 @@
       "package": "java.util",
       "fromString": "it.split(\"-\").let{ ls -> Locale(ls.first(), ls.last()) }",
       "toString": "\"${it.language}-${it.country}\""
+    },
+    {
+      "type": "Date",
+      "package": "java.util",
+      "fromString": "Date(it.toLong())",
+      "toString": "it.time.toString()"
     }
   ]
 }

@@ -155,10 +155,38 @@ class FlourGen : AbstractProcessor() {
         val cb = CodeBuilder.create(level)
         when (t) {
             is EnclosedType.Normal -> {
-                when (parentWrapper) {
-                    is ParentWrapper.Array -> cb.addLine("${jsonObjName}.put(${parentWrapper.jsonName})")
-                    is ParentWrapper.Map -> cb.addLine("${jsonObjName}.put(${parentWrapper.jsonName}.key, ${parentWrapper.jsonName}.value)")
-                    is ParentWrapper.None -> cb.addLine("${jsonObjName}.put(\"${parentWrapper.jsonName}\", obj.${propName})")
+                val (convertStr, isCustomObj, getType) = getType(t)
+                if (isCustomObj) {
+                    when (parentWrapper) {
+                        is ParentWrapper.None -> {
+                            cb.addLine("val ${propName}Str = ${t.className.simpleName}Recipe.toJSON(obj.${propName})")
+                            cb.addLine("${jsonObjName}.put(\"${parentWrapper.jsonName}\", JSONObject(${propName}Str))")
+                        }
+                        is ParentWrapper.Array -> {
+                            cb.addLine("val ${propName}Str = ${t.className.simpleName}Recipe.toJSON(${propName})")
+                            cb.addLine("${jsonObjName}.put(JSONObject(${propName}Str))")
+                        }
+                        is ParentWrapper.Map -> {
+                            cb.addLine("val ${propName}Str = ${t.className.simpleName}Recipe.toJSON(${parentWrapper.jsonName}.value)")
+                            if (parentWrapper.serializableKey != null) {
+                                cb.addLine("${jsonObjName}.put(${parentWrapper.jsonName}.key.let{${parentWrapper.serializableKey.toJSONMapping}}, JSONObject(${propName}Str))")
+                            } else {
+                                cb.addLine("${jsonObjName}.put(${parentWrapper.jsonName}.key, JSONObject(${propName}Str))")
+                            }
+                        }
+                    }
+                } else {
+                    when (parentWrapper) {
+                        is ParentWrapper.Array -> cb.addLine("${jsonObjName}.put(${parentWrapper.jsonName})")
+                        is ParentWrapper.Map -> {
+                            if (parentWrapper.serializableKey != null) {
+                                cb.addLine("${jsonObjName}.put(${parentWrapper.jsonName}.key.let{${parentWrapper.serializableKey.toJSONMapping}}, ${parentWrapper.jsonName}.value)")
+                            } else {
+                                cb.addLine("${jsonObjName}.put(${parentWrapper.jsonName}.key, ${parentWrapper.jsonName}.value)")
+                            }
+                        }
+                        is ParentWrapper.None -> cb.addLine("${jsonObjName}.put(\"${parentWrapper.jsonName}\", obj.${propName})")
+                    }
                 }
             }
             is EnclosedType.List -> {
@@ -199,7 +227,11 @@ class FlourGen : AbstractProcessor() {
                     t.enclosedTypeValue,
                     i,
                     "${propName}Map",
-                    parentWrapper = ParentWrapper.Map(propName, i),
+                    parentWrapper = ParentWrapper.Map(
+                        propName,
+                        i,
+                        t.enclosedTypeKey as? EnclosedType.Serializable
+                    ),
                     level = level + 1
                 )
                 cb.addLine(codeChuck)
@@ -263,13 +295,26 @@ class FlourGen : AbstractProcessor() {
                 if (isCustomObj) {
                     cb.addLine("val ${propName}JSON = $jsonObjName.$getType(${parentWrapper.jsonName})$convertStr")
                     when (parentWrapper) {
-                        is ParentWrapper.Array -> cb.addLine("$propName.add(${t.className.simpleName}Recipe.fromJSON(${propName}JSON.toString()))")
+                        is ParentWrapper.Array -> cb.addLine("${propName.removeSuffix("0")}.add(${t.className.simpleName}Recipe.fromJSON(${propName}JSON.toString()))")
+                        is ParentWrapper.Map -> {
+                            if (parentWrapper.serializableKey != null) {
+                                cb.addLine("${propName.removeSuffix("0")}[${parentWrapper.jsonName}.let{${parentWrapper.serializableKey.fromJSONMapping}}] = ${t.className.simpleName}Recipe.fromJSON(${propName}JSON.toString())")
+                            } else {
+                                cb.addLine("${propName.removeSuffix("0")}[${parentWrapper.jsonName}] = ${t.className.simpleName}Recipe.fromJSON(${propName}JSON.toString())")
+                            }
+                        }
                         is ParentWrapper.None -> cb.addLine("val $propName = ${t.className.simpleName}Recipe.fromJSON(${propName}JSON.toString())")
                     }
                 } else {
                     when (parentWrapper) {
                         is ParentWrapper.Array -> cb.addLine("${propName.removeSuffix("0")}.add($jsonObjName.$getType(${parentWrapper.jsonName})$convertStr)")
-                        is ParentWrapper.Map -> cb.addLine("${propName.removeSuffix("0")}[${parentWrapper.jsonName}] = $jsonObjName.$getType(${parentWrapper.jsonName})$convertStr")
+                        is ParentWrapper.Map -> {
+                            if (parentWrapper.serializableKey != null) {
+                                cb.addLine("${propName.removeSuffix("0")}[${parentWrapper.jsonName}.let{${parentWrapper.serializableKey.fromJSONMapping}}] = $jsonObjName.$getType(${parentWrapper.jsonName})$convertStr")
+                            } else {
+                                cb.addLine("${propName.removeSuffix("0")}[${parentWrapper.jsonName}] = $jsonObjName.$getType(${parentWrapper.jsonName})$convertStr")
+                            }
+                        }
                         is ParentWrapper.None -> cb.addLine("val $propName = $jsonObjName.$getType(${parentWrapper.jsonName})$convertStr")
                     }
                 }
@@ -297,19 +342,24 @@ class FlourGen : AbstractProcessor() {
                 cb.addLine("val $propName = mutableMapOf<${t.genericTypeKey},${t.genericTypeValue}>()")
                 cb.addLine("val ${propName}Map = $jsonObjName.getJSONObject(${parentWrapper.jsonName})")
                 cb.addLine("for ($i in ${propName}Map.keys()) {")
-                if (t.enclosedTypeKey is EnclosedType.Serializable) {
-                    TODO()
-                }
                 val codeChuck = computeTypeConversion(
                     t.enclosedTypeValue,
                     "${propName}0",
                     "${propName}Map",
-                    parentWrapper = ParentWrapper.Map(propName, i),
+                    parentWrapper = ParentWrapper.Map(
+                        propName,
+                        i,
+                        t.enclosedTypeKey as? EnclosedType.Serializable
+                    ),
                     level = level + 1
                 )
                 cb.addLine(codeChuck)
-                if (!codeChuck.contains("${propName}[$i]")) {
-                    cb.addLine("${propName}[$i] = ${propName}0")
+                if (!codeChuck.contains("${propName}[$i")) {
+                    if (t.enclosedTypeKey is EnclosedType.Serializable) {
+                        cb.addLine("${propName}[$i.let{${t.enclosedTypeKey.fromJSONMapping}}] = ${propName}0")
+                    } else {
+                        cb.addLine("${propName}[$i] = ${propName}0")
+                    }
                 }
                 cb.addLine("}")
             }
@@ -323,7 +373,11 @@ class FlourGen : AbstractProcessor() {
     sealed class ParentWrapper(open val jsonName: String) {
         data class None(override val jsonName: String) : ParentWrapper(jsonName)
         data class Array(override val jsonName: String) : ParentWrapper(jsonName)
-        data class Map(val mapObj: String, override val jsonName: String) : ParentWrapper(jsonName)
+        data class Map(
+            val mapObj: String,
+            override val jsonName: String,
+            val serializableKey: EnclosedType.Serializable?
+        ) : ParentWrapper(jsonName)
     }
 
     private fun getType(t: EnclosedType.Normal): Triple<String, Boolean, String> {
