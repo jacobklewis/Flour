@@ -1,0 +1,112 @@
+# Java Gradle CircleCI 2.0 configuration file
+#
+# Check https://circleci.com/docs/2.0/language-java/ for more details
+#
+version: 2.1
+executors:
+  my-executor:
+    docker:
+    # specify the version you desire here
+    - image: circleci/openjdk:8-jdk
+
+    # Specify service dependencies here if necessary
+    # CircleCI maintains a library of pre-built images
+    # documented at https://circleci.com/docs/2.0/circleci-images/
+    # - image: circleci/postgres:9.4
+
+    working_directory: ~/repo
+
+jobs:
+  build:
+    executor: my-executor
+
+    steps:
+      - checkout
+
+      # add local.properties
+      - run:
+          name: Add local.properties
+          command: echo $localprops | base64 --decode > local.properties
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "build.gradle" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
+
+      #if permission for Gradlew Dependencies fail, use this.
+      - run:
+          name: Chmod permissions
+          command: sudo chmod +x ./gradlew
+
+      - run:
+          name: Dependencies
+          command: ./gradlew dependencies
+
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: v1-dependencies-{{ checksum "build.gradle" }}
+
+      # build!
+      - run:
+          name: Build
+          command: ./gradlew clean build -x test
+
+      # run tests!
+      - run:
+          name: Test
+          command: ./gradlew test
+
+  deploy:
+    executor: my-executor
+
+    steps:
+      - checkout
+
+      # add local.properties
+      - run:
+          name: Add local.properties
+          command: echo $localprops | base64 --decode > local.properties
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+            - v1-dependencies-{{ checksum "build.gradle" }}
+            # fallback to using the latest cache if no exact match is found
+            - v1-dependencies-
+
+      #if permission for Gradlew Dependencies fail, use this.
+      - run:
+          name: Chmod permissions
+          command: sudo chmod +x ./gradlew
+
+      - run:
+          name: Dependencies
+          command: ./gradlew dependencies
+
+      - save_cache:
+          paths:
+            - ~/.gradle
+          key: v1-dependencies-{{ checksum "build.gradle" }}
+
+      # build!
+      - run:
+          name: Build
+          command: ./gradlew clean build -x test
+
+      # deploy!
+      - run:
+          name: Deploy
+          command: ./gradlew bintrayUpload
+
+workflows:
+  main_workflow:
+    jobs:
+      - build
+      - deploy:
+          filters:
+            branches:
+              only:
+                - master
