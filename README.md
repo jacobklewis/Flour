@@ -91,8 +91,8 @@ android {
 }
 
 dependencies {
-  compileOnly 'me.jacoblewis.flour:flour:0.0.1'
-  kapt 'me.jacoblewis.flour:flour-gen:0.0.1'
+  compileOnly 'me.jacoblewis.flour:flour:0.0.2'
+  kapt 'me.jacoblewis.flour:flour-gen:0.0.2'
 }
 ```
 
