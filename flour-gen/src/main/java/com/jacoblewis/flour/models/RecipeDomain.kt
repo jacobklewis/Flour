@@ -25,10 +25,11 @@ data class RecipeDomain(
             val fields = e.enclosedElements
             val ingredients = possibleIngredients.filter {
                 if (it.parent == name) {
+                    note("${it.name}: ${fields.toString()}")
                     val fField =
                         fields.firstOrNull { f -> f.simpleName.removeSuffix("\$annotations") == it.name }
-                    val typeStr = fField?.asType()?.toString()
-                    note(typeStr)
+                    val typeStr = fField?.asType()?.toString()?.removePrefix("()")
+                    note("${it.name}: $typeStr")
                     it.type = findEnclosedType(typeStr, settings)
                     true
                 } else {
@@ -41,13 +42,13 @@ data class RecipeDomain(
 
         internal fun findEnclosedType(typeStr: String?, settings: FlourSettings): EnclosedType {
             return when {
-                typeStr?.startsWith("java.util.List") == true -> {
-                    val rawType = typeStr.removePrefix("java.util.List<").removeSuffix(">")
+                typeStr?.removePrefix("()")?.startsWith("java.util.List") == true -> {
+                    val rawType = typeStr.removePrefix("()").removePrefix("java.util.List<").removeSuffix(">")
                     val enclosedType = findEnclosedType(rawType, settings)
                     EnclosedType.List(enclosedType)
                 }
-                typeStr?.startsWith("java.util.Map") == true -> {
-                    val rawInner = typeStr.removePrefix("java.util.Map<").removeSuffix(">")
+                typeStr?.removePrefix("()")?.startsWith("java.util.Map") == true -> {
+                    val rawInner = typeStr.removePrefix("()").removePrefix("java.util.Map<").removeSuffix(">")
                     val sepIndex = findFirstIndexOfSeparator(rawInner)
                     val rawTypeKey = rawInner.substring(0, sepIndex)
                     val rawTypeValue = rawInner.substring(sepIndex + 1)
@@ -99,7 +100,7 @@ data class RecipeDomain(
         }
 
         private fun determineType(typeStr: String?): ClassName? =
-            when (typeStr?.toLowerCase(Locale.ENGLISH)?.removePrefix("java.lang.")) {
+            when (typeStr?.lowercase()?.removePrefix("()")?.removePrefix("java.lang.")) {
                 "int" -> ClassName("", "Int")
                 "integer" -> ClassName("", "Int")
                 "long" -> ClassName("", "Long")

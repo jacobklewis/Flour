@@ -1,6 +1,7 @@
 package com.jacoblewis.flour.models
 
 import com.jacoblewis.flour.Ingredient
+import com.jacoblewis.flour.utils.removedGet
 import javax.annotation.processing.ProcessingEnvironment
 import javax.lang.model.element.Element
 
@@ -14,7 +15,7 @@ data class IngredientDomain(
         fun create(env: ProcessingEnvironment, e: Element): IngredientDomain {
             val name = e.simpleName.toString().removeSuffix("\$annotations")
             val ann = e.getAnnotation(Ingredient::class.java)
-            val jsonName = ann.serializedName.takeIf { it.isNotBlank() } ?: name
+            val jsonName = ann.serializedName.takeIf { it.isNotBlank() } ?: name.removedGet
             val parent = e.enclosingElement.simpleName.toString()
             return IngredientDomain(
                 name,
