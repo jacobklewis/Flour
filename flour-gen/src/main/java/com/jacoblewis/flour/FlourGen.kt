@@ -61,7 +61,7 @@ class FlourGen : AbstractProcessor() {
                 RecipeDomain.create(
                     processingEnv, settings ?: FlourSettings(
                         emptyList()
-                    ), it, ingredients, ::note
+                    ), it, ingredients, ::note, ::error
                 )
             }
 
@@ -202,7 +202,7 @@ class FlourGen : AbstractProcessor() {
                 }
                 val i = "i${level}"
                 cb.addLine("val ${propName}Arr = JSONArray()")
-                cb.addLine("for ($i in $pName) {")
+                cb.addLine("for ($i in $pName ?: emptyList()) {")
                 val codeChuck = computeTypeEncode(
                     t.enclosedType,
                     i,
@@ -227,7 +227,7 @@ class FlourGen : AbstractProcessor() {
                 }
                 val i = "i${level}"
                 cb.addLine("val ${propName}Map = JSONObject()")
-                cb.addLine("for ($i in $pName) {")
+                cb.addLine("for ($i in $pName ?: emptyMap()) {")
                 val codeChuck = computeTypeEncode(
                     t.enclosedTypeValue,
                     i,

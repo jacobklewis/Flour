@@ -39,9 +39,9 @@ data class NestedModel1(
 @Recipe
 data class NestedModel2(
     @Ingredient
-    val list: List<ListModel1>,
+    val list: List<ListModel1>?,
     @Ingredient
-    val map: Map<String, MapModel1>
+    val map: Map<String, MapModel1>?
 )
 
 @Recipe

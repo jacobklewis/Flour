@@ -4,6 +4,7 @@ import com.jacoblewis.flour.Ingredient
 import com.jacoblewis.flour.utils.removedGet
 import javax.annotation.processing.ProcessingEnvironment
 import javax.lang.model.element.Element
+import javax.tools.Diagnostic
 
 data class IngredientDomain(
     val name: String,
@@ -13,10 +14,12 @@ data class IngredientDomain(
 ) {
     companion object {
         fun create(env: ProcessingEnvironment, e: Element): IngredientDomain {
-            val name = e.simpleName.toString().removeSuffix("\$annotations")
+            val name =
+                e.simpleName.toString().replace(Regex("\\$.*"), "")
             val ann = e.getAnnotation(Ingredient::class.java)
             val jsonName = ann.serializedName.takeIf { it.isNotBlank() } ?: name.removedGet
             val parent = e.enclosingElement.simpleName.toString()
+            env.messager.printMessage(Diagnostic.Kind.NOTE, "$name\r\n")
             return IngredientDomain(
                 name,
                 jsonName,

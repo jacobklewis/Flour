@@ -1,9 +1,9 @@
 package com.jacoblewis.flour.models
 
 import com.squareup.kotlinpoet.ClassName
-import java.util.*
 import javax.annotation.processing.ProcessingEnvironment
 import javax.lang.model.element.Element
+import javax.lang.model.element.Modifier
 
 data class RecipeDomain(
     val name: String,
@@ -17,7 +17,8 @@ data class RecipeDomain(
             settings: FlourSettings,
             e: Element,
             possibleIngredients: List<IngredientDomain>,
-            note: (String?) -> Unit
+            note: (String?) -> Unit,
+            error: (String?,Element) -> Unit,
         ): RecipeDomain {
             RecipeDomain.note = note
             val name = e.simpleName.toString()
@@ -25,9 +26,13 @@ data class RecipeDomain(
             val fields = e.enclosedElements
             val ingredients = possibleIngredients.filter {
                 if (it.parent == name) {
-                    note("${it.name}: ${fields.toString()}")
                     val fField =
-                        fields.firstOrNull { f -> f.simpleName.removeSuffix("\$annotations") == it.name }
+                        fields.firstOrNull { f -> f.simpleName.replace(Regex("\\$.*"), "") == it.name }
+
+                    if (fField?.modifiers?.contains(Modifier.PRIVATE) == true) {
+                        // It is a private field
+                        error("${it.name} is private. You must define a type in the Ingredient Annotation", fField)
+                    }
                     val typeStr = fField?.asType()?.toString()?.removePrefix("()")
                     note("${it.name}: $typeStr")
                     it.type = findEnclosedType(typeStr, settings)
