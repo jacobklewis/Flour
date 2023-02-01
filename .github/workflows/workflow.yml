@@ -34,8 +34,8 @@ jobs:
       # Runs a single command using the runners shell
       - name: Add local.properties
         with: # Or as an environment variable
-          localprops: ${{ secrets.LOCALPROPS }}
-        run: echo $localprops | base64 --decode #>> gradle.properties
+          LOCALPROPS: ${{ secrets.LOCALPROPS }}
+        run: echo $LOCALPROPS | base64 --decode #>> gradle.properties
 
       # Runs a set of commands using the runners shell
       - name: Chmod permissions
