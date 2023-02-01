@@ -52,3 +52,7 @@ jobs:
             ~/.gradle/caches
             ~/.gradle/wrapper
           key: ${{ steps.cache-primes-restore.outputs.cache-primary-key }}
+
+      - name: Deploy
+        run: ./gradlew publish --no-daemon --no-parallel
+        if: ${{ github.ref == 'refs/heads/master' }}
