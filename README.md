@@ -83,7 +83,7 @@ Download
 ```groovy
 android {
   ...
-  // Flour requires Java 8.
+  // Flour might require Java 8 (optional)
   compileOptions {
     sourceCompatibility JavaVersion.VERSION_1_8
     targetCompatibility JavaVersion.VERSION_1_8
@@ -91,8 +91,8 @@ android {
 }
 
 dependencies {
-  compileOnly 'me.jacoblewis.flour:flour:0.0.2'
-  kapt 'me.jacoblewis.flour:flour-gen:0.0.2'
+  compileOnly 'me.jacoblewis.flour:flour:0.1.0'
+  kapt 'me.jacoblewis.flour:flour-gen:0.1.0'
 }
 ```
 
