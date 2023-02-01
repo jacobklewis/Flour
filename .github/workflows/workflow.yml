@@ -34,9 +34,9 @@ jobs:
       # Runs a single command using the runners shell
       - name: Add local.properties
         env: # Or as an environment variable
-          LOCALPROPS: ${{ secrets.LOCALPROPS }}
+          LOCAL_PROPS: ${{ secrets.LOCAL_PROPS }}
         run: |
-          echo $LOCALPROPS | base64 --decode > local.properties
+          echo $LOCAL_PROPS | base64 --decode > local.properties
           cat local.properties
 
       # Runs a set of commands using the runners shell
