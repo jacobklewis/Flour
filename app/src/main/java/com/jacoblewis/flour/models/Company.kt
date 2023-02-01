@@ -11,5 +11,7 @@ data class Company(
     @Ingredient
     val address: String,
     @Ingredient
-    val language: Locale
+    val language: Locale,
+    @Ingredient
+    internal val secondLang2: Locale = Locale.CANADA
 )

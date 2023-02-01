@@ -1,9 +1,9 @@
 package com.jacoblewis.flour.models
 
 import com.squareup.kotlinpoet.ClassName
-import java.util.*
 import javax.annotation.processing.ProcessingEnvironment
 import javax.lang.model.element.Element
+import javax.lang.model.element.Modifier
 
 data class RecipeDomain(
     val name: String,
@@ -17,7 +17,8 @@ data class RecipeDomain(
             settings: FlourSettings,
             e: Element,
             possibleIngredients: List<IngredientDomain>,
-            note: (String?) -> Unit
+            note: (String?) -> Unit,
+            error: (String?,Element) -> Unit,
         ): RecipeDomain {
             RecipeDomain.note = note
             val name = e.simpleName.toString()
@@ -26,9 +27,14 @@ data class RecipeDomain(
             val ingredients = possibleIngredients.filter {
                 if (it.parent == name) {
                     val fField =
-                        fields.firstOrNull { f -> f.simpleName.removeSuffix("\$annotations") == it.name }
-                    val typeStr = fField?.asType()?.toString()
-                    note(typeStr)
+                        fields.firstOrNull { f -> f.simpleName.replace(Regex("\\$.*"), "") == it.name }
+
+                    if (fField?.modifiers?.contains(Modifier.PRIVATE) == true) {
+                        // It is a private field
+                        error("${it.name} is private. You must define a type in the Ingredient Annotation", fField)
+                    }
+                    val typeStr = fField?.asType()?.toString()?.removePrefix("()")
+                    note("${it.name}: $typeStr")
                     it.type = findEnclosedType(typeStr, settings)
                     true
                 } else {
@@ -41,13 +47,13 @@ data class RecipeDomain(
 
         internal fun findEnclosedType(typeStr: String?, settings: FlourSettings): EnclosedType {
             return when {
-                typeStr?.startsWith("java.util.List") == true -> {
-                    val rawType = typeStr.removePrefix("java.util.List<").removeSuffix(">")
+                typeStr?.removePrefix("()")?.startsWith("java.util.List") == true -> {
+                    val rawType = typeStr.removePrefix("()").removePrefix("java.util.List<").removeSuffix(">")
                     val enclosedType = findEnclosedType(rawType, settings)
                     EnclosedType.List(enclosedType)
                 }
-                typeStr?.startsWith("java.util.Map") == true -> {
-                    val rawInner = typeStr.removePrefix("java.util.Map<").removeSuffix(">")
+                typeStr?.removePrefix("()")?.startsWith("java.util.Map") == true -> {
+                    val rawInner = typeStr.removePrefix("()").removePrefix("java.util.Map<").removeSuffix(">")
                     val sepIndex = findFirstIndexOfSeparator(rawInner)
                     val rawTypeKey = rawInner.substring(0, sepIndex)
                     val rawTypeValue = rawInner.substring(sepIndex + 1)
@@ -99,7 +105,7 @@ data class RecipeDomain(
         }
 
         private fun determineType(typeStr: String?): ClassName? =
-            when (typeStr?.toLowerCase(Locale.ENGLISH)?.removePrefix("java.lang.")) {
+            when (typeStr?.lowercase()?.removePrefix("()")?.removePrefix("java.lang.")) {
                 "int" -> ClassName("", "Int")
                 "integer" -> ClassName("", "Int")
                 "long" -> ClassName("", "Long")

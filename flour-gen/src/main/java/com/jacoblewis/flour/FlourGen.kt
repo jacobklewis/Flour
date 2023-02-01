@@ -3,6 +3,7 @@ package com.jacoblewis.flour
 import com.google.auto.service.AutoService
 import com.jacoblewis.flour.models.*
 import com.jacoblewis.flour.utils.CodeBuilder
+import com.jacoblewis.flour.utils.removedGet
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.FileSpec
 import com.squareup.kotlinpoet.FunSpec
@@ -60,7 +61,7 @@ class FlourGen : AbstractProcessor() {
                 RecipeDomain.create(
                     processingEnv, settings ?: FlourSettings(
                         emptyList()
-                    ), it, ingredients, ::note
+                    ), it, ingredients, ::note, ::error
                 )
             }
 
@@ -79,7 +80,9 @@ class FlourGen : AbstractProcessor() {
         val settingsFile = File("flour-settings.json")
         if (settingsFile.exists()) {
             val settingsStr = settingsFile.inputStream().readBytes().toString(Charsets.UTF_8)
+            note("JSON SETTINGS2: $settingsStr")
             val settingsJSON = JSONObject(settingsStr)
+            note("JSON SETTINGS PARSED")
             val adaptersJSON = settingsJSON.getJSONArray("adapters")
             val adapters = mutableListOf<FlourAdapter>()
             for (adapt in 0 until adaptersJSON.length()) {
@@ -93,6 +96,7 @@ class FlourGen : AbstractProcessor() {
                     )
                 )
             }
+            note("LOADED JSON SETTINGS")
             settings = FlourSettings(adapters)
         }
     }
@@ -123,6 +127,7 @@ class FlourGen : AbstractProcessor() {
             file.addImport(im.pack, im.type)
         }
         val kaptKotlinGeneratedDir = processingEnv.options[KAPT_KOTLIN_GENERATED_OPTION_NAME]
+        note("GENERATED DIR: $kaptKotlinGeneratedDir")
         file.build().writeTo(File(kaptKotlinGeneratedDir))
     }
 
@@ -135,7 +140,7 @@ class FlourGen : AbstractProcessor() {
             val t = ingredient.type
             val encCode = computeTypeEncode(
                 t,
-                ingredient.name,
+                ingredient.name.removedGet,
                 "json",
                 ParentWrapper.None(ingredient.jsonName)
             )
@@ -197,7 +202,7 @@ class FlourGen : AbstractProcessor() {
                 }
                 val i = "i${level}"
                 cb.addLine("val ${propName}Arr = JSONArray()")
-                cb.addLine("for ($i in $pName) {")
+                cb.addLine("for ($i in $pName ?: emptyList()) {")
                 val codeChuck = computeTypeEncode(
                     t.enclosedType,
                     i,
@@ -222,7 +227,7 @@ class FlourGen : AbstractProcessor() {
                 }
                 val i = "i${level}"
                 cb.addLine("val ${propName}Map = JSONObject()")
-                cb.addLine("for ($i in $pName) {")
+                cb.addLine("for ($i in $pName ?: emptyMap()) {")
                 val codeChuck = computeTypeEncode(
                     t.enclosedTypeValue,
                     i,
@@ -251,6 +256,7 @@ class FlourGen : AbstractProcessor() {
                     is ParentWrapper.None -> cb.addLine("${jsonObjName}.put(\"${parentWrapper.jsonName}\", obj.$propName.let{${t.toJSONMapping}})")
                 }
             }
+            EnclosedType.NotDetermined -> {}
         }
         return cb.build()
     }
@@ -268,12 +274,12 @@ class FlourGen : AbstractProcessor() {
             val convCode =
                 computeTypeConversion(
                     t,
-                    ingredient.name,
+                    ingredient.name.removedGet,
                     "json",
                     ParentWrapper.None("\"${ingredient.jsonName}\"")
                 )
             f.addCode(convCode)
-            props.add("${ingredient.name} = ${ingredient.name}")
+            props.add("${ingredient.name.removedGet} = ${ingredient.name.removedGet}")
         }
 
         f.addCode("return ${recipe.name}(${props.joinToString(", ")})")
@@ -366,6 +372,7 @@ class FlourGen : AbstractProcessor() {
             is EnclosedType.Serializable -> {
                 cb.addLine("val $propName = $jsonObjName.getString(${parentWrapper.jsonName}).let{${t.fromJSONMapping}}")
             }
+            EnclosedType.NotDetermined -> {}
         }
         return cb.build()
     }
@@ -383,7 +390,7 @@ class FlourGen : AbstractProcessor() {
     private fun getType(t: EnclosedType.Normal): Triple<String, Boolean, String> {
         var convertStr = ""
         var isCustomObj = false
-        val typeStr = when (t.className.simpleName.toLowerCase(Locale.ENGLISH)) {
+        val typeStr = when (t.className.simpleName.lowercase()) {
             "int" -> "getInt"
             "integer" -> "getInt"
             "long" -> "getLong"

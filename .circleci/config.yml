@@ -26,7 +26,7 @@ jobs:
       # add local.properties
       - run:
           name: Add local.properties
-          command: echo $localprops | base64 --decode > local.properties
+          command: echo $localprops2 | base64 --decode > local.properties
 
       # Download and cache dependencies
       - restore_cache:
@@ -68,7 +68,7 @@ jobs:
       # add local.properties
       - run:
           name: Add local.properties
-          command: echo $localprops | base64 --decode > local.properties
+          command: echo $localprops2 | base64 --decode > local.properties
 
       # Download and cache dependencies
       - restore_cache:
@@ -99,7 +99,7 @@ jobs:
       # deploy!
       - run:
           name: Deploy
-          command: ./gradlew bintrayUpload
+          command: ./gradlew publish --no-daemon --no-parallel
 
 workflows:
   main_workflow:
