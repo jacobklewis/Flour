@@ -4,10 +4,8 @@ import com.google.auto.service.AutoService
 import com.jacoblewis.flour.models.*
 import com.jacoblewis.flour.utils.CodeBuilder
 import com.jacoblewis.flour.utils.removedGet
-import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.FileSpec
-import com.squareup.kotlinpoet.FunSpec
-import com.squareup.kotlinpoet.TypeSpec
+import com.squareup.kotlinpoet.*
+import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
 import org.json.JSONObject
 import java.io.File
 import java.util.*
@@ -73,6 +71,7 @@ class FlourGen : AbstractProcessor() {
             val obj = buildRecipe(recipe)
             saveRecipe(recipe.packageName, obj, settings?.adapters ?: emptyList())
         }
+        saveCommonInterface()
         return true
     }
 
@@ -105,6 +104,7 @@ class FlourGen : AbstractProcessor() {
         val objName = "${recipe.name}Recipe"
 
         val obj = TypeSpec.objectBuilder(objName)
+        obj.addSuperinterface(ClassName("me.jacoblewis.flour", "JSONRecipe").parameterizedBy(ClassName(recipe.packageName, recipe.name)))
         with(obj) {
             addFunction(buildToJSONFunction(recipe))
             addFunction(buildFromJSONFunction(recipe))
@@ -131,6 +131,23 @@ class FlourGen : AbstractProcessor() {
         file.build().writeTo(File(kaptKotlinGeneratedDir))
     }
 
+
+    private fun saveCommonInterface() {
+        val objBuilder = TypeSpec.interfaceBuilder("JSONRecipe")
+        val typeVar = TypeVariableName("T")
+        objBuilder.addTypeVariable(typeVar)
+
+        objBuilder.addFunction(FunSpec.builder("toJSON").addModifiers(KModifier.ABSTRACT).addParameter(ParameterSpec("obj",typeVar)).returns(ClassName("kotlin", "String")).build())
+        objBuilder.addFunction(FunSpec.builder("fromJSON").addModifiers(KModifier.ABSTRACT).addParameter(ParameterSpec("jsonStr",ClassName("kotlin", "String"))).returns(typeVar).build())
+
+        val name = "JSONRecipe"
+        val file = FileSpec.builder(packageName = "me.jacoblewis.flour", fileName = name)
+            .addType(objBuilder.build())
+        val kaptKotlinGeneratedDir = processingEnv.options[KAPT_KOTLIN_GENERATED_OPTION_NAME]
+        note("GENERATED DIR: $kaptKotlinGeneratedDir")
+        file.build().writeTo(File(kaptKotlinGeneratedDir))
+    }
+
     internal fun buildToJSONFunction(recipe: RecipeDomain): FunSpec {
         val f = FunSpec.builder("toJSON")
             .addParameter("obj", ClassName(recipe.packageName, recipe.name))
@@ -147,6 +164,7 @@ class FlourGen : AbstractProcessor() {
             f.addCode(encCode)
         }
         f.addCode("return json.toString()")
+        f.addModifiers(KModifier.OVERRIDE)
         return f.build()
     }
 
@@ -283,6 +301,7 @@ class FlourGen : AbstractProcessor() {
         }
 
         f.addCode("return ${recipe.name}(${props.joinToString(", ")})")
+        f.addModifiers(KModifier.OVERRIDE)
         return f.build()
     }
 
